@@ -2,13 +2,58 @@
 #include <future>
 #include <memory>
 #include <thread>
+#include <type_traits>
 #include "message_queue.hpp"
 
+namespace details
+{
+// The type of return value has an influence on the way
+// how the promise should be processed.
+template <class Result>
+struct invoke_traits;
+
+// Any exception must be caught and returned to the client thread.
+template <class Function, class Result>
+void safe_invoke(Function &command, std::promise<Result> &result)
+{
+  try
+  {
+    invoke_traits<Result>::invoke(command, result);
+  }
+  catch (...)
+  {
+    result.set_exception(std::current_exception());
+  }
+}
+
+template <class Result>
+struct invoke_traits
+{
+  template <class Function>
+  static void invoke(Function &command, std::promise<Result> &result)
+  {
+    result.set_value(command());
+  }
+};
+
+template <>
+struct invoke_traits<void>
+{
+  template <class Function>
+  static void invoke(Function &command, std::promise<void> &result)
+  {
+    command();
+    result.set_value();
+  }
+};
+
+} // namespace details
+
+// The class decouples method execution from method invocation
+// for objects that each reside in their own thread of control.
 class active_object
 {
 public:
-  typedef std::function<void()> command_type;
-
   active_object() : done_(false)
   {
     thread_ = std::thread([&]() { run(); });
@@ -18,44 +63,38 @@ public:
   // and waits until the thread will be finished.
   ~active_object()
   {
-    command_queque_.send([&]() { done_ = true; });
+    queue_.send([&]() { done_ = true; });
     thread_.join();
   }
 
   // Copying is not allowed
-  active_object(const active_object&) = delete;
-  active_object& operator= (const active_object&) = delete;
+  active_object(const active_object &) = delete;
+  active_object &operator=(const active_object &) = delete;
 
-  // TODO: Make up how to get rid of carrying promise by shared_ptr.
-  // The problem is copying of it is not allowed but movint it into closure doesn't help
-  template<typename Fun>
-  std::future<void> execute(Fun command)
+  // We have to use shared_ptr for hanging a promise
+  // because the closure will be copied in std::function constructor anyway.
+  template <class Function, class Result = typename std::result_of<Function()>::type>
+  std::future<Result> execute(Function &&command)
   {
-    auto result = std::make_shared<std::promise<void>>();
-    auto future = result->get_future();
-    command_queque_.send([result, command]() mutable {
-      try {
-        command();
-        result->set_value();
-      }
-      catch(...) {
-        result->set_exception(std::current_exception());
-      }
+    auto result = std::make_shared<std::promise<Result>>();
+    queue_.send([command, result]() mutable {
+      details::safe_invoke<Function, Result>(command, *result);
     });
-    return future;
+    return result->get_future();
   }
 
 private:
   // Commands execution routine.
   void run()
   {
-    while(!done_) {
-      const auto command = command_queque_.receive();
+    while (!done_)
+    {
+      const auto command = queue_.receive();
       command();
     }
   }
 
-  message_queue<command_type> command_queque_;
+  message_queue<std::function<void()>> queue_;
   std::thread thread_;
   bool done_;
 };

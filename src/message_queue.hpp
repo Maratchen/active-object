@@ -5,7 +5,7 @@
 #include <queue>
 #include <utility>
 
-// Provides delivering messages from producer to consumer in thread-safe way
+// Provides delivering messages from producer to consumer in thread-safe way.
 template<
   class Message,
   class Synchronize = std::mutex,
@@ -19,20 +19,25 @@ public:
 
   // Puts an incoming message into the queue.
   // Wakes up the consumer if it's necessary.
-  void send(value_type message)
+  template<class T>
+  void send(T&& message)
   {
     std::lock_guard<synchronize_type> lock(sync_);
-    container_.push(std::move(message));
+    container_.push(std::forward<T>(message));
     condition_.notify_one();
   }
 
   // Takes away the first message.
   // When there is nothing it will wait for an incoming message.
+  // Swap helps to avoid copying when value_type is moveable.
+  // RVO will prevent copying a message too.
   value_type receive()
   {
+    value_type message;
     std::unique_lock<synchronize_type> lock(sync_);
     condition_.wait(lock, [&]() { return !container_.empty(); });
-    value_type message = container_.front();
+    using namespace std;
+    swap(message, container_.front());
     container_.pop();
     return message;
   }
