@@ -84,17 +84,20 @@ public:
   }
 
 private:
+  using command_type = std::function<void()>;
+
   // Commands execution routine.
   void run()
   {
+    command_type command;
     while (!done_)
     {
-      const auto command = queue_.receive();
+      queue_.receive(command);
       command();
     }
   }
 
-  message_queue<std::function<void()>> queue_;
+  message_queue<command_type> queue_;
   std::thread thread_;
   bool done_;
 };

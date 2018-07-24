@@ -1,2 +1,2 @@
 # Active object
-Yet one  more  implementation  the active object design pattern inspired by Herb Sutter: [Prefer Using Active Objects Instead of Naked Threads](http://www.drdobbs.com/parallel/prefer-using-active-objects-instead-of-n/225700095). He didn't give the answer how to handle a methods' return values. So I decided to do it myself.
+Yet one more implementation the active object design pattern inspired by Herb Sutter: [Prefer Using Active Objects Instead of Naked Threads](http://www.drdobbs.com/parallel/prefer-using-active-objects-instead-of-n/225700095). He didn't give the answer how to handle a methods' return values. So I decided to do it myself.

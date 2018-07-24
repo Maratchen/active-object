@@ -27,19 +27,14 @@ public:
     condition_.notify_one();
   }
 
-  // Takes away the first message.
-  // When there is nothing it will wait for an incoming message.
-  // Swap helps to avoid copying when value_type is moveable.
-  // RVO will prevent copying a message too.
-  value_type receive()
+  // Waits till a message will be added and then retrieves it.
+  // Receiver takes the message by reference to guarantee exception safety.
+  void receive(value_type &message)
   {
-    value_type message;
     std::unique_lock<synchronize_type> lock(sync_);
     condition_.wait(lock, [&]() { return !container_.empty(); });
-    using namespace std;
-    swap(message, container_.front());
+    message = std::move(container_.front());
     container_.pop();
-    return message;
   }
 
 private:

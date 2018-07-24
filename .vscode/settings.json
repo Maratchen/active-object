@@ -51,6 +51,7 @@
         "xfacet": "cpp",
         "xiosbase": "cpp",
         "xlocinfo": "cpp",
-        "xlocnum": "cpp"
+        "xlocnum": "cpp",
+        "xxatomic": "cpp"
     }
 }
