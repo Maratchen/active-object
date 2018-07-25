@@ -5,50 +5,6 @@
 #include <type_traits>
 #include "message_queue.hpp"
 
-namespace details
-{
-// The type of return value has an influence on the way
-// how the promise should be processed.
-template <class Result>
-struct invoke_traits;
-
-// Any exception must be caught and returned to the client thread.
-template <class Function, class Result>
-void safe_invoke(Function &command, std::promise<Result> &result)
-{
-  try
-  {
-    invoke_traits<Result>::invoke(command, result);
-  }
-  catch (...)
-  {
-    result.set_exception(std::current_exception());
-  }
-}
-
-template <class Result>
-struct invoke_traits
-{
-  template <class Function>
-  static void invoke(Function &command, std::promise<Result> &result)
-  {
-    result.set_value(command());
-  }
-};
-
-template <>
-struct invoke_traits<void>
-{
-  template <class Function>
-  static void invoke(Function &command, std::promise<void> &result)
-  {
-    command();
-    result.set_value();
-  }
-};
-
-} // namespace details
-
 // The class decouples method execution from method invocation
 // for objects that each reside in their own thread of control.
 class active_object
@@ -76,11 +32,10 @@ public:
   template <class Function, class Result = typename std::result_of<Function()>::type>
   std::future<Result> execute(Function &&command)
   {
-    auto result = std::make_shared<std::promise<Result>>();
-    queue_.send([command, result]() mutable {
-      details::safe_invoke<Function, Result>(command, *result);
-    });
-    return result->get_future();
+    using task_type = std::packaged_task<Result()>;
+    auto task = std::make_shared<task_type>(std::forward<Function>(command));
+    queue_.send([task]() { (*task)(); });
+    return task->get_future();
   }
 
 private:
