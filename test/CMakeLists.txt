@@ -3,6 +3,8 @@ find_package(catch2 REQUIRED)
 
 add_executable(tests
     active_object_tests.cpp
+    message_queue_tests.cpp
+    exception_safety.cpp
     main.cpp
 )
 target_link_libraries(tests PRIVATE

@@ -1,14 +1,48 @@
 #pragma once
+#include "exception_safety.h"
 
 namespace test
 {
   struct dummy
   {
-    dummy() : value_(0) {}
-    dummy(int value) : value_(value) {}
-    dummy(const dummy &other) : value_(other.value_) {}
+    dummy()
+    {
+      this_can_throw();
+    }
 
-    int value_;
+    dummy(int value)
+    {
+      this_can_throw();
+      value_ = value;
+    }
+
+    dummy(dummy &&other)
+    {
+      this_can_throw();
+      std::swap(value_, other.value_);
+    }
+
+    dummy(const dummy &other)
+    {
+      this_can_throw();
+      value_ = other.value_;
+    }
+
+    dummy& operator=(const dummy &other)
+    {
+      this_can_throw();
+      value_ = other.value_;
+      return *this;
+    }
+
+    dummy& operator=(dummy &&other)
+    {
+      this_can_throw();
+      std::swap(value_, other.value_);
+      return *this;
+    }
+
+    int value_ = 0;
   };
 
   inline bool operator==(const dummy &lhs, const dummy &rhs)

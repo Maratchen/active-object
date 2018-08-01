@@ -29,3 +29,12 @@ TEST_CASE( "Smoke test", "[active_object]" )
   REQUIRE(result_two.get() == 4);
   REQUIRE(42 == dummy);
 }
+
+TEST_CASE( "Test of exception", "[active_object]" )
+{
+  active_object object;
+  future<void> result;
+
+  REQUIRE_NOTHROW(result = object.execute([]() { throw 0; }));
+  REQUIRE_THROWS(result.get());
+}
