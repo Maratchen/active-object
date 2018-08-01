@@ -1,3 +1,12 @@
-add_executable(smoke_test main.cpp)
-target_link_libraries(smoke_test active_object)
-add_test(smoke_test smoke_test)
+project(tests)
+find_package(catch2 REQUIRED)
+
+add_executable(tests
+    active_object_tests.cpp
+    main.cpp
+)
+target_link_libraries(tests PRIVATE
+    catch2::catch2
+    active_object
+)
+add_test(smoke_test tests)
