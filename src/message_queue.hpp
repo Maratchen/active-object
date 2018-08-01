@@ -21,7 +21,7 @@ public:
   // Makes empty queue
   message_queue() = default;
 
-  // Makes copies messages only, not synchronization objects.
+  // Makes copies of messages only, not synchronization objects.
   message_queue(const message_queue &other)
   {
     container_ = other.get_container();
