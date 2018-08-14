@@ -42,6 +42,7 @@ public:
   // unique_lock is required to get unlock while waiting.
   void receive_all(container_type &messages)
   {
+    messages.clear();
     std::unique_lock<synchronize_type> lock(sync_);
     condition_.wait(lock, [&]() { return !container_.empty(); });
     std::swap(container_, messages);

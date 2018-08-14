@@ -49,7 +49,6 @@ private:
     container_type commands;
     while (!done_)
     {
-      commands.clear();
       queue_.receive_all(commands);
       for_each(commands.begin(), commands.end(),
                [](const command_type &command) {
