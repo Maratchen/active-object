@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <functional>
 #include <future>
 #include <memory>
@@ -40,15 +41,20 @@ public:
 
 private:
   using command_type = std::function<void()>;
+  using container_type = typename message_queue<command_type>::container_type;
 
   // Commands execution routine.
   void run()
   {
-    command_type command;
+    container_type commands;
     while (!done_)
     {
-      queue_.receive(command);
-      command();
+      commands.clear();
+      queue_.receive_all(commands);
+      for_each(commands.begin(), commands.end(),
+               [](const command_type &command) {
+                 command();
+               });
     }
   }
 

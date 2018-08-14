@@ -2,15 +2,15 @@
 
 #include <condition_variable>
 #include <mutex>
-#include <queue>
 #include <utility>
+#include <vector>
 
 // Provides delivering messages from many producers to one consumer
 // in thread-safe way.
 template<
   class Message,
   class Synchronize = std::mutex,
-  class Container = std::queue<Message>>
+  class Container = std::vector<Message>>
 class message_queue
 {
 public:
@@ -33,19 +33,18 @@ public:
   void send(T&& message)
   {
     std::lock_guard<synchronize_type> lock(sync_);
-    container_.push(std::forward<T>(message));
+    container_.emplace_back(std::forward<T>(message));
     condition_.notify_one();
   }
 
   // Waits till a message will be added and then retrieves it.
   // Receiver takes the message by reference to guarantee exception safety.
   // unique_lock is required to get unlock while waiting.
-  void receive(value_type &message)
+  void receive_all(container_type &messages)
   {
     std::unique_lock<synchronize_type> lock(sync_);
     condition_.wait(lock, [&]() { return !container_.empty(); });
-    message = std::move(container_.front());
-    container_.pop();
+    std::swap(container_, messages);
   }
 
   // Makes a copy of the internal container (for unit tests)
