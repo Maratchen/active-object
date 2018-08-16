@@ -1,10 +1,8 @@
 #include <algorithm>
-#include <functional>
-#include <future>
-#include <memory>
 #include <thread>
 #include <type_traits>
 #include "message_queue.hpp"
+#include "universal_call.hpp"
 
 // The class decouples method execution from method invocation
 // for objects that each reside in their own thread of control.
@@ -28,19 +26,18 @@ public:
   active_object(const active_object &) = delete;
   active_object &operator=(const active_object &) = delete;
 
-  // We have to use shared_ptr for hanging a promise
-  // because the closure will be copied in std::function constructor anyway.
-  template <class Function, class Result = typename std::result_of<Function()>::type>
-  std::future<Result> execute(Function &&command)
+  // We take future before moving packaged task into queue.
+  template <class Callable, class Result = typename std::result_of<Callable()>::type>
+  std::future<Result> execute(Callable &&callable)
   {
-    using task_type = std::packaged_task<Result()>;
-    auto task = std::make_shared<task_type>(std::forward<Function>(command));
-    queue_.send([task]() { (*task)(); });
-    return task->get_future();
+    std::packaged_task<Result()> task{std::forward<Callable>(callable)};
+    std::future<Result> result = task.get_future();
+    queue_.send(make_universal_call(std::move(task)));
+    return result;
   }
 
 private:
-  using command_type = std::function<void()>;
+  using command_type = universal_call<void()>;
   using container_type = typename message_queue<command_type>::container_type;
 
   // Commands execution routine.
