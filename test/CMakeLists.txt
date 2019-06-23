@@ -1,14 +1,14 @@
 project(tests)
 find_package(catch2 REQUIRED)
 
-add_executable(tests
-    active_object_tests.cpp
-    message_queue_tests.cpp
-    exception_safety.cpp
+add_executable(testrunner
+    thread_executor_tests.cpp
     main.cpp
 )
-target_link_libraries(tests PRIVATE
+
+target_link_libraries(testrunner PRIVATE
     catch2::catch2
-    active_object
+    active
 )
-add_test(smoke_test tests)
+
+add_test(all_tests testrunner)
