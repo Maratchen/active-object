@@ -1,14 +1,25 @@
-project(tests)
-find_package(catch2 REQUIRED)
+# automatically enable catch2 to generate ctest targets
+if(CONAN_CATCH2_ROOT_DEBUG)
+  include(${CONAN_CATCH2_ROOT_DEBUG}/lib/cmake/Catch2/Catch.cmake)
+else()
+  include(${CONAN_CATCH2_ROOT}/lib/cmake/Catch2/Catch.cmake)
+endif()
 
-add_executable(testrunner
-    thread_executor_tests.cpp
-    main.cpp
+add_library(catch2_main STATIC
+    main.cpp)
+
+target_link_libraries(catch2_main PRIVATE
+    CONAN_PKG::catch2
 )
 
-target_link_libraries(testrunner PRIVATE
-    catch2::catch2
+add_executable(tests
+    thread_executor_tests.cpp
+)
+
+target_link_libraries(tests PRIVATE
+    CONAN_PKG::catch2
+    catch2_main
     active
 )
 
-add_test(all_tests testrunner)
+catch_discover_tests(tests)
