@@ -20,7 +20,7 @@ endif()
 
 include(${CMAKE_BINARY_DIR}/conan.cmake)
 
-conan_cmake_configure(REQUIRES catch2/3.0.1
+conan_cmake_configure(REQUIRES benchmark/1.6.1 catch2/3.0.1
                       GENERATORS cmake_find_package)
 
 conan_cmake_autodetect(settings)
@@ -46,3 +46,4 @@ target_compile_features(active INTERFACE
 
 enable_testing()
 add_subdirectory(test)
+add_subdirectory(benchmark)
