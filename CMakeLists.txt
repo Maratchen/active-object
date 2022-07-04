@@ -41,7 +41,7 @@ target_link_libraries(active INTERFACE
 )
 
 target_compile_features(active INTERFACE
-    cxx_std_11
+    cxx_std_20
 )
 
 enable_testing()
