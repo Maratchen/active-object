@@ -1,5 +1,5 @@
 #include <active/thread_executor.hpp>
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace active;
 using namespace std;

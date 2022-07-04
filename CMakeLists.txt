@@ -20,7 +20,7 @@ endif()
 
 include(${CMAKE_BINARY_DIR}/conan.cmake)
 
-conan_cmake_configure(REQUIRES catch2/2.13.0
+conan_cmake_configure(REQUIRES catch2/3.0.1
                       GENERATORS cmake_find_package)
 
 conan_cmake_autodetect(settings)
