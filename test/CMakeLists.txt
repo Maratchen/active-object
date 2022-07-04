@@ -1,15 +1,10 @@
-# automatically enable catch2 to generate ctest targets
-if(CONAN_CATCH2_ROOT_DEBUG)
-  include(${CONAN_CATCH2_ROOT_DEBUG}/lib/cmake/Catch2/Catch.cmake)
-else()
-  include(${CONAN_CATCH2_ROOT}/lib/cmake/Catch2/Catch.cmake)
-endif()
+find_package(Catch2)
 
 add_library(catch2_main STATIC
     main.cpp)
 
-target_link_libraries(catch2_main PRIVATE
-    CONAN_PKG::catch2
+target_link_libraries(catch2_main PUBLIC
+    Catch2::Catch2
 )
 
 add_executable(tests
@@ -17,9 +12,12 @@ add_executable(tests
 )
 
 target_link_libraries(tests PRIVATE
-    CONAN_PKG::catch2
     catch2_main
     active
 )
 
+include(CTest)
+include(Catch)
+
+# automatically enable catch2 to generate ctest targets
 catch_discover_tests(tests)
