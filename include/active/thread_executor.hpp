@@ -65,20 +65,26 @@ namespace active
             using ResultType = typename std::invoke_result<Function, Args...>::type;
             auto task = std::packaged_task<ResultType(Args...)>{std::forward<Function>(fn)};
             auto result = task.get_future();
+            bool notify = false;
 
-            std::lock_guard<std::mutex> sync(mutex_);
-            queue_.emplace(
-                [
-                    task = std::move(task), 
-                    params = std::make_tuple(std::forward<Args>(args)...)
-                ]() mutable { 
-                    std::apply([&](auto&... args) {
-                        task(std::forward<Args>(args)...);
-                    }, params);
-                }
-            );
+            {
+                std::lock_guard<std::mutex> sync(mutex_);
+                notify = queue_.empty();
+                queue_.emplace(
+                    [
+                        task = std::move(task), 
+                        params = std::make_tuple(std::forward<Args>(args)...)
+                    ]() mutable { 
+                        std::apply([&](auto&... args) {
+                            task(std::forward<Args>(args)...);
+                        }, params);
+                    }
+                );
+            }
 
-            ready_.notify_one();
+            if (notify) {
+                ready_.notify_one();
+            }
 
             return result;
         }
