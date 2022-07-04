@@ -52,7 +52,7 @@ namespace active
          * and waits until the thread will be finished.
          */
         ~thread_executor() {
-            post([&] () { done_ = true; });
+            execute([this]() { done_ = true; });
             thread_.join();
         }
 
@@ -61,7 +61,7 @@ namespace active
          */
         template<class Function, class... Args>
         std::future<typename std::invoke_result<Function, Args...>::type>
-        post(Function&& fn, Args&&... args) {
+        execute(Function&& fn, Args&&... args) {
             using ResultType = typename std::invoke_result<Function, Args...>::type;
             auto task = std::packaged_task<ResultType(Args...)>{std::forward<Function>(fn)};
             auto result = task.get_future();

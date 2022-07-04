@@ -7,7 +7,7 @@ using namespace std;
 TEST_CASE( "Multithreading", "[thread_executor]" )
 {
     thread_executor executor;
-    auto thread_id = executor.post([] () {
+    auto thread_id = executor.execute([] () {
         return this_thread::get_id();
     });
     REQUIRE(thread_id.get() != this_thread::get_id());
@@ -16,14 +16,14 @@ TEST_CASE( "Multithreading", "[thread_executor]" )
 TEST_CASE( "Sequentially-consistent", "[thread_executor]" )
 {
     thread_executor executor;
-    auto f1 = executor.post([](auto a, auto b) { return a + b; }, 1, 2);
-    auto f2 = executor.post([](auto&& f1, auto c) { return f1.get() + c; }, std::move(f1), 3);
+    auto f1 = executor.execute([](auto a, auto b) { return a + b; }, 1, 2);
+    auto f2 = executor.execute([](auto&& f1, auto c) { return f1.get() + c; }, std::move(f1), 3);
     REQUIRE(f2.get() == 6);
 }
 
 TEST_CASE( "Exception propagation", "[thread_executor]" )
 {
     future<void> result;
-    REQUIRE_NOTHROW(result = thread_executor().post([]() { throw std::exception(); }));
+    REQUIRE_NOTHROW(result = thread_executor().execute([]() { throw std::exception(); }));
     REQUIRE_THROWS(result.get());
 }
