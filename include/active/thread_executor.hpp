@@ -3,14 +3,16 @@
 #ifndef ACTIVE_THREAD_EXECUTOR_HPP
 #define ACTIVE_THREAD_EXECUTOR_HPP
 
+#include <algorithm>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
 #include <thread>
 #include <tuple>
-#include <queue>
+#include <vector>
 
 #include "unique_function.hpp"
 
@@ -28,15 +30,24 @@ namespace active
          */
         thread_executor() : done_(false) {
             thread_ = std::thread([&] () {
+                auto tasks = std::vector<unique_function<void()>>();
+                tasks.reserve(32);
+
                 while (!done_) {
                     std::unique_lock<std::mutex> sync(mutex_);
                     ready_.wait(sync, [&] () { return !queue_.empty(); });
 
-                    auto task = std::move(queue_.front());
-                    queue_.pop();
+                    const auto count = std::min(queue_.size(), tasks.capacity());
+                    std::move(queue_.begin(), queue_.begin() + count, std::back_inserter(tasks));
+                    queue_.erase(queue_.begin(), queue_.begin() + count);
 
                     sync.unlock();
-                    task();
+
+                    for (auto& task : tasks) {
+                        task();
+                    }
+
+                    tasks.clear();
                 }
             });
         }
@@ -70,7 +81,7 @@ namespace active
             {
                 std::lock_guard<std::mutex> sync(mutex_);
                 notify = queue_.empty();
-                queue_.emplace(
+                queue_.emplace_back(
                     [
                         task = std::move(task), 
                         params = std::make_tuple(std::forward<Args>(args)...)
@@ -90,7 +101,7 @@ namespace active
         }
 
     private:
-        std::queue<unique_function<void()>> queue_;
+        std::deque<unique_function<void()>> queue_;
         std::condition_variable ready_;
         std::mutex mutable mutex_;
         std::thread thread_;
