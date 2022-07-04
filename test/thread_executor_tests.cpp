@@ -13,27 +13,17 @@ TEST_CASE( "Multithreading", "[thread_executor]" )
     REQUIRE(thread_id.get() != this_thread::get_id());
 }
 
-void test_and_set(int& value, int expected, int desired) {
-    if (value == expected) {
-        value = desired;
-    }
-}
-
 TEST_CASE( "Sequentially-consistent", "[thread_executor]" )
 {
-    int counter = 0;
-    {
-        thread_executor executor;
-        executor.post(&test_and_set, std::ref(counter), 0, 1);
-        executor.post(&test_and_set, std::ref(counter), 1, 2);
-        executor.post(&test_and_set, std::ref(counter), 2, 3);
-    }
-    REQUIRE(3 == counter);
+    thread_executor executor;
+    auto f1 = executor.post([](auto a, auto b) { return a + b; }, 1, 2);
+    auto f2 = executor.post([](auto&& f1, auto c) { return f1.get() + c; }, std::move(f1), 3);
+    REQUIRE(f2.get() == 6);
 }
 
 TEST_CASE( "Exception propagation", "[thread_executor]" )
 {
     future<void> result;
-    REQUIRE_NOTHROW(result = thread_executor().post([]() { throw 0; }));
+    REQUIRE_NOTHROW(result = thread_executor().post([]() { throw std::exception(); }));
     REQUIRE_THROWS(result.get());
 }

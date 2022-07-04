@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <tuple>
 #include <queue>
 
 #include "unique_function.hpp"
@@ -58,15 +59,25 @@ namespace active
         /**
          * Puts a task into the queue and wakes up the consumer thread.
          */
-        template<class Callable, class... Args>
-        std::future<typename std::result_of<Callable(Args...)>::type>
-        post(Callable&& callable, Args&&... args) {
-            using ResultType = typename std::result_of<Callable(Args...)>::type;
-            std::packaged_task<ResultType(Args...)> task(std::forward<Callable>(callable));
+        template<class Function, class... Args>
+        std::future<typename std::invoke_result<Function, Args...>::type>
+        post(Function&& fn, Args&&... args) {
+            using ResultType = typename std::invoke_result<Function, Args...>::type;
+            auto task = std::packaged_task<ResultType(Args...)>{std::forward<Function>(fn)};
             auto result = task.get_future();
 
             std::lock_guard<std::mutex> sync(mutex_);
-            queue_.emplace(std::bind(std::move(task), std::forward<Args>(args)...));
+            queue_.emplace(
+                [
+                    task = std::move(task), 
+                    params = std::make_tuple(std::forward<Args>(args)...)
+                ]() mutable { 
+                    std::apply([&](auto&... args) {
+                        task(std::forward<Args>(args)...);
+                    }, params);
+                }
+            );
+
             ready_.notify_one();
 
             return result;
