@@ -20,6 +20,7 @@ RUN apt-get update \
     # Install C++ tools
     && apt-get -y install \
         build-essential \
+        ninja-build \
         cmake \
         cppcheck \
         valgrind \
