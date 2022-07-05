@@ -1,22 +1,35 @@
 #include <active/thread_executor.hpp>
 #include <benchmark/benchmark.h>
 
- auto executor = std::unique_ptr<active::thread_executor>();
+auto executor = std::unique_ptr<active::thread_executor>();
 
 static void BM_ThreadExecutor(benchmark::State& state) {
     if (state.thread_index() == 0) {
         executor = std::make_unique<active::thread_executor>();
     }
 
-    auto sum_numbers = [](auto a, auto b) { return a + b; };
-    auto sum_futures = [](auto a, auto b) { return a.get() + b.get(); };
+    const auto max_inflight_count = state.range(0);
+    const auto increment_value = [](auto value) { return value + 1; };
+    const auto increment_result = [](auto&& result) { return result.get() + 1; };
+
+    auto value = 0;
+    auto result = std::future<int>();
+    auto inflight_count = int64_t();
 
     for (auto _ : state) {
-        auto f1 = executor->execute(sum_numbers, 1, 2);
-        auto f2 = executor->execute(sum_numbers, 3, 4);
-        auto f3 = executor->execute(sum_futures, std::move(f1), std::move(f2));
-        assert(f3.get() == 10);
+        if (max_inflight_count == inflight_count) {
+            value = result.get();
+            inflight_count = 0;
+        }
+        if (!result.valid()) {
+            result = executor->execute(increment_value, value);
+        } else {
+            result = executor->execute(increment_result, std::move(result));
+        }
+        ++inflight_count;
     }
+
+    assert(result.get() == state.items_processed());
 
     if (state.thread_index() == 0) {
         executor.release();
@@ -24,7 +37,9 @@ static void BM_ThreadExecutor(benchmark::State& state) {
 }
 
 // Register the function as a benchmark
-BENCHMARK(BM_ThreadExecutor)->Threads(std::thread::hardware_concurrency());
+BENCHMARK(BM_ThreadExecutor)
+    ->Threads(std::thread::hardware_concurrency())
+    ->Range(8, 8<<10);
 
 // Run the benchmark
 BENCHMARK_MAIN();
