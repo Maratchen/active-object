@@ -26,11 +26,16 @@ namespace active
     {
     public:
         /**
+         * A type erasure for tasks to execute.
+         */
+        using task_type = unique_function<void()>;
+
+        /**
          * Creates an execution thread.
          */
-        thread_executor() : done_(false) {
-            thread_ = std::thread([&] () {
-                auto tasks = std::vector<unique_function<void()>>();
+        thread_executor() {
+            thread_ = std::thread([this] () {
+                auto tasks = std::vector<task_type>();
                 tasks.reserve(32);
 
                 while (!done_) {
@@ -63,12 +68,28 @@ namespace active
          * and waits until the thread will be finished.
          */
         ~thread_executor() {
-            execute([this]() { done_ = true; });
+            schedule([this]() { done_ = true; });
             thread_.join();
         }
 
         /**
          * Puts a task into the queue and wakes up the consumer thread.
+         */
+        void schedule(task_type task) {
+            bool there_is_need_to_notify = false;
+            {
+                std::lock_guard<std::mutex> sync(mutex_);
+                there_is_need_to_notify = queue_.empty();
+                queue_.push_back(std::move(task));
+            }
+            if (there_is_need_to_notify) {
+                ready_.notify_one();
+            }
+        }
+
+        /**
+         * Schedules function for execution on the consumer thread
+         * and returns a future object as the result.
          */
         template<class Function, class... Args>
         std::future<typename std::invoke_result<Function, Args...>::type>
@@ -76,36 +97,25 @@ namespace active
             using ResultType = typename std::invoke_result<Function, Args...>::type;
             auto task = std::packaged_task<ResultType(Args...)>{std::forward<Function>(fn)};
             auto result = task.get_future();
-            bool notify = false;
 
-            {
-                std::lock_guard<std::mutex> sync(mutex_);
-                notify = queue_.empty();
-                queue_.emplace_back(
-                    [
-                        task = std::move(task), 
-                        params = std::make_tuple(std::forward<Args>(args)...)
-                    ]() mutable { 
-                        std::apply([&](auto&... args) {
-                            task(std::forward<Args>(args)...);
-                        }, params);
-                    }
-                );
-            }
-
-            if (notify) {
-                ready_.notify_one();
-            }
+            schedule([
+                task = std::move(task), 
+                args = std::make_tuple(std::forward<Args>(args)...)
+            ]() mutable { 
+                std::apply([&](auto&... args) {
+                    task(std::forward<Args>(args)...);
+                }, args);
+            });
 
             return result;
         }
 
     private:
-        std::deque<unique_function<void()>> queue_;
+        std::deque<task_type> queue_;
         std::condition_variable ready_;
         std::mutex mutable mutex_;
         std::thread thread_;
-        bool done_;
+        bool done_ = false;
     };
 }
 

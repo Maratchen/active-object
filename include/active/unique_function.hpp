@@ -19,7 +19,7 @@ namespace active
     {
     public:
         template<class Fn>
-        explicit unique_function(Fn&& fn)
+        unique_function(Fn&& fn) noexcept
          : callable_(new callable_impl<Fn>(std::forward<Fn>(fn))) {}
 
         unique_function(unique_function&&) = default;
