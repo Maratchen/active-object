@@ -6,9 +6,8 @@
 #include <algorithm>
 #include <condition_variable>
 #include <deque>
-#include <functional>
 #include <future>
-#include <memory>
+#include <memory_resource>
 #include <mutex>
 #include <thread>
 #include <tuple>
@@ -18,8 +17,32 @@
 
 namespace active
 {
+    namespace detail
+    {
+        /**
+         * Parameters to construct the executor.
+         */
+        struct thread_executor_construction_options
+        {
+            /**
+             * The maximum number of tasks obtained throughout a single synchronization.
+             */
+            std::size_t max_batch_size = 64;
+
+            /**
+             * A set of constructor options for the memory pool resource.
+             */
+            std::pmr::pool_options memory_pool_options = {};
+
+            /**
+             * A pointer to the upstream memory resource.
+             */
+            std::pmr::memory_resource* upstream_memory_resource = std::pmr::get_default_resource();
+        };
+    }
+
     /**
-     * Provides a synchronyzed interface
+     * A class providing a synchronized interface
      * to execute task on another thread.
      */
     class thread_executor
@@ -31,9 +54,18 @@ namespace active
         using task_type = unique_function<void()>;
 
         /**
+         * A work-around for the clang and gcc bug
+         * https://bugs.llvm.org/show_bug.cgi?id=36684
+         */
+        using construction_options = detail::thread_executor_construction_options;
+
+        /**
          * Creates an execution thread.
          */
-        explicit thread_executor(std::size_t max_batch_size = 64) {
+        explicit thread_executor(const construction_options& options = {})
+            : memory_pool_(options.memory_pool_options, options.upstream_memory_resource)
+            , queue_(std::pmr::polymorphic_allocator<task_type>(&memory_pool_))
+        {
             thread_ = std::thread([this] (std::size_t max_batch_size) {
                 auto tasks = std::vector<task_type>();
                 tasks.reserve(std::max(max_batch_size, std::size_t(1)));
@@ -54,7 +86,7 @@ namespace active
 
                     tasks.clear();
                 }
-            }, max_batch_size);
+            }, options.max_batch_size);
         }
 
         /**
@@ -111,7 +143,8 @@ namespace active
         }
 
     private:
-        std::deque<task_type> queue_;
+        std::pmr::unsynchronized_pool_resource memory_pool_;
+        std::pmr::deque<task_type> queue_;
         std::condition_variable ready_;
         std::mutex mutable mutex_;
         std::thread thread_;

@@ -5,8 +5,11 @@ auto executor = std::unique_ptr<active::thread_executor>();
 
 static void BM_ThreadExecutor(benchmark::State& state) {
     if (state.thread_index() == 0) {
-        const auto max_batch_size = state.range(0);
-        executor = std::make_unique<active::thread_executor>(max_batch_size);
+        executor = std::make_unique<active::thread_executor>(
+            active::thread_executor::construction_options{
+                .max_batch_size = static_cast<std::size_t>(state.range(0))
+            }
+        );
     }
 
     const auto max_inflight_count = state.range(1);
