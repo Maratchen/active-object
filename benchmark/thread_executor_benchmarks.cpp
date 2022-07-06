@@ -5,10 +5,11 @@ auto executor = std::unique_ptr<active::thread_executor>();
 
 static void BM_ThreadExecutor(benchmark::State& state) {
     if (state.thread_index() == 0) {
-        executor = std::make_unique<active::thread_executor>();
+        const auto max_batch_size = state.range(0);
+        executor = std::make_unique<active::thread_executor>(max_batch_size);
     }
 
-    const auto max_inflight_count = state.range(0);
+    const auto max_inflight_count = state.range(1);
     const auto increment_value = [](auto value) { return value + 1; };
     const auto increment_result = [](auto&& result) { return result.get() + 1; };
 
@@ -39,7 +40,7 @@ static void BM_ThreadExecutor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(BM_ThreadExecutor)
     ->Threads(std::thread::hardware_concurrency())
-    ->Range(8, 8<<10);
+    ->Ranges({{1, 1<<10}, {8, 8<<10}});
 
 // Run the benchmark
 BENCHMARK_MAIN();

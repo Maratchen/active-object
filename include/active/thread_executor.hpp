@@ -33,10 +33,10 @@ namespace active
         /**
          * Creates an execution thread.
          */
-        thread_executor() {
-            thread_ = std::thread([this] () {
+        explicit thread_executor(std::size_t max_batch_size = 64) {
+            thread_ = std::thread([this] (std::size_t max_batch_size) {
                 auto tasks = std::vector<task_type>();
-                tasks.reserve(32);
+                tasks.reserve(std::max(max_batch_size, std::size_t(1)));
 
                 while (!done_) {
                     std::unique_lock<std::mutex> sync(mutex_);
@@ -54,7 +54,7 @@ namespace active
 
                     tasks.clear();
                 }
-            });
+            }, max_batch_size);
         }
 
         /**

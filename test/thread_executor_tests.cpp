@@ -27,3 +27,11 @@ TEST_CASE( "Exception propagation", "[thread_executor]" )
     REQUIRE_NOTHROW(result = thread_executor().execute([]() { throw std::exception(); }));
     REQUIRE_THROWS(result.get());
 }
+
+TEST_CASE( "Prevent infinite loop with zero batch size", "[thread_executor]" )
+{
+    auto executor = thread_executor(0);
+    auto result = executor.execute([]() { return 42; });
+    REQUIRE(result.wait_for(std::chrono::seconds(1)) != std::future_status::timeout);
+    REQUIRE(result.get() == 42);
+}
