@@ -3,12 +3,21 @@
 #ifndef ACTIVE_UNIQUE_FUNCTION_HPP
 #define ACTIVE_UNIQUE_FUNCTION_HPP
 
+#include <functional>
+
 namespace active
 {
+#if __cpp_lib_move_only_function >= 202110L
+
+    template<class... Ts>
+    using unique_function = std::move_only_function<Ts...>;
+
+#else
+
     /**
      * general template form
      */
-    template<class Fn>
+    template<class... Ts>
     class unique_function;
 
     /**
@@ -53,6 +62,9 @@ namespace active
 
         std::unique_ptr<callable> callable_;
     };
+
+#endif // #if __cpp_lib_move_only_function >= 202110L
+
 }
 
 #endif // ACTIVE_UNIQUE_FUNCTION_HPP
