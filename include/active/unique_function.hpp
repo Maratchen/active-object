@@ -172,7 +172,7 @@ namespace active
         template<class Function, class = std::enable_if_t<
             std::is_invocable_r<Result, Function, Args...>::value &&
             std::is_nothrow_move_constructible<Function>::value>>
-        unique_function(Function&& value) noexcept
+        unique_function(Function&& value)
             : handle_(detail::get_function_handle<Function, Args...>(sizeof(storage_)))
         {
             std::invoke(handle_, detail::handle_command::create_from_value, &storage_, &value);
@@ -182,17 +182,6 @@ namespace active
             : handle_(other.handle_)
         {
             std::invoke(handle_, detail::handle_command::create_from_other, &storage_, &other.storage_);
-        }
-
-        template<class Function, class = std::enable_if_t<
-            std::is_invocable_r<Result, Function, Args...>::value &&
-            std::is_nothrow_move_constructible<Function>::value>>
-        unique_function& operator=(Function&& value) noexcept
-        {
-            std::invoke(handle_, detail::handle_command::destroy, &storage_, nullptr);
-            handle_ = detail::get_function_handle<Function, Args...>(sizeof(storage_));
-            std::invoke(handle_, detail::handle_command::create_from_value, &storage_, &value);
-            return *this;
         }
 
         unique_function& operator=(unique_function&& other) noexcept {
@@ -249,8 +238,8 @@ namespace active
 
         template<class Function, class = std::enable_if_t<
             std::is_nothrow_move_constructible<Function>::value>>
-        unique_function(Function&& fn) noexcept
-         : callable_(new callable_impl<Function>(std::forward<Function>(fn))) {}
+        unique_function(Function&& fn)
+         : callable_(std::make_unique<callable_impl<Function>>(std::forward<Function>(fn))) {}
 
         unique_function(unique_function&&) = default;
         unique_function& operator=(unique_function&&) = default;
@@ -278,16 +267,16 @@ namespace active
             virtual ~callable() = default;
         };
 
-        template<class Fn>
+        template<class Function>
         struct callable_impl : callable
         {
-            callable_impl(Fn&& fn) : fn_(std::forward<Fn>(fn)) {}
+            callable_impl(Function&& fn) : fn_(std::forward<Function>(fn)) {}
 
             Result invoke(Args&&... args) override {
                 return fn_(std::forward<Args>(args)...);
             }
 
-            typename std::decay<Fn>::type fn_;
+            typename std::decay<Function>::type fn_;
         };
 
         std::unique_ptr<callable> callable_;
