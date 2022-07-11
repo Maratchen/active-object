@@ -1,6 +1,7 @@
 find_package(Catch2 3 REQUIRED)
 
 add_executable(tests
+    unique_function_tests.cpp
     thread_executor_tests.cpp
 )
 

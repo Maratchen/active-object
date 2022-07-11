@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(active_object)
 
+option(USE_SMALL_OBJECT_OPTIMIZATION "Use a SOO implementation of unique function" ON)
+
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 
@@ -42,6 +44,10 @@ target_link_libraries(active INTERFACE
 
 target_compile_features(active INTERFACE
     cxx_std_20
+)
+
+target_compile_definitions(active INTERFACE
+    $<$<BOOL:${USE_SMALL_OBJECT_OPTIMIZATION}>:SOO_UNIQUE_FUNCTION=1>
 )
 
 enable_testing()
