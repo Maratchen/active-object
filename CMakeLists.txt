@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(active_object)
 
-option(USE_SMALL_OBJECT_OPTIMIZATION "Use a SOO implementation of unique function" ON)
+option(USE_SMALL_OBJECT_OPTIMIZATION "Use Small Object Optimization for unique function" ON)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
