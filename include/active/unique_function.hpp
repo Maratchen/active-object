@@ -38,11 +38,33 @@ namespace active
 
         template<class Function, class... Args>
         using params_pack = std::conditional_t<
-                std::is_void<std::invoke_result_t<Function, Args...>>::value
-                , std::tuple<std::add_lvalue_reference_t<Args>...>
-                , std::tuple<
+                std::is_void_v<std::invoke_result_t<Function, Args...>>,
+                std::tuple<std::add_lvalue_reference_t<Args>...>,
+                std::tuple<
                     std::add_lvalue_reference_t<std::invoke_result_t<Function, Args...>>,
                     std::add_lvalue_reference_t<Args>...>>;
+
+        template<class Function, class... Args>
+        struct function_inplace_impl
+        {
+            function_inplace_impl(Function&& fn) : function_(std::move(fn)) {}
+            function_inplace_impl(const function_inplace_impl&) = delete;
+            function_inplace_impl(function_inplace_impl&&) = default;
+            ~function_inplace_impl() = default;
+
+            Function function_;
+        };
+
+        template<class Function, class... Args>
+        struct function_pointer_impl
+        {
+            function_pointer_impl(Function&& fn) : function_(std::make_unique<Function>(std::move(fn))) {}
+            function_pointer_impl(const function_pointer_impl&) = delete;
+            function_pointer_impl(function_pointer_impl&&) = default;
+            ~function_pointer_impl() = default;
+
+            std::unique_ptr<Function> function_;
+        };
 
         template<class Function, class... Args>
         void invoke_function(Function& fn, params_pack<Function, Args...>& params) {
@@ -57,100 +79,48 @@ namespace active
             }
         }
 
-        static void noop_handle(handle_command, void*, void*) {}
-
         template<class Function, class... Args>
-        struct function_inplace_impl
-        {
-            function_inplace_impl(Function&& fn) : function_(std::move(fn)) {}
-            function_inplace_impl(const function_inplace_impl&) = delete;
-            function_inplace_impl(function_inplace_impl&&) = default;
-            ~function_inplace_impl() = default;
-
-            static void handle(handle_command, void*, void*);
-
-            Function function_;
-        };
-
-        template<class Function, class... Args>
-        struct function_pointer_impl
-        {
-            function_pointer_impl(Function&& fn) : function_(std::make_unique<Function>(std::move(fn))) {}
-            function_pointer_impl(const function_pointer_impl&) = delete;
-            function_pointer_impl(function_pointer_impl&&) = default;
-            ~function_pointer_impl() = default;
-
-            static void handle(handle_command, void*, void*);
-
-            std::unique_ptr<Function> function_;
-        };
-
-        template<class Function, class... Args>
-        void function_inplace_impl<Function, Args...>::handle(
-            handle_command command, void* storage, void* param
-        ) {
-            switch (command) {
-                case handle_command::create_from_value: {
-                    auto* value = static_cast<Function*>(param);
-                    new (storage) function_inplace_impl(std::move(*value));
-                    break;
-                }
-                case handle_command::create_from_other: {
-                   auto* other = static_cast<function_inplace_impl*>(param);
-                    new (storage) function_inplace_impl(std::move(*other));
-                    break;
-                }
-                case handle_command::invoke: {
-                    auto* self = static_cast<function_inplace_impl*>(storage);
-                    auto* params = static_cast<params_pack<Function, Args...>*>(param);
-                    invoke_function<Function, Args...>(self->function_, *params);
-                    break;
-                }
-                case handle_command::destroy: {
-                    auto* self = static_cast<function_inplace_impl*>(storage);
-                    self->~function_inplace_impl();
-                    break;
-                }
-            }
+        void invoke_function(const std::unique_ptr<Function>& fn, params_pack<Function, Args...>& params) {
+            invoke_function(*fn, params);
         }
 
-                template<class Function, class... Args>
-        void function_pointer_impl<Function, Args...>::handle(
-            handle_command command, void* storage, void* param
-        ) {
-            switch (command) {
-                case handle_command::create_from_value: {
-                    auto* value = static_cast<Function*>(param);
-                    new (storage) function_pointer_impl(std::move(*value));
-                    break;
+        template<std::size_t BufferSize, class Function, class... Args>
+        handle_function get_function_handle() {
+            using function_impl = std::conditional_t<
+                sizeof(Function) <= BufferSize,
+                function_inplace_impl<Function, Args...>,
+                function_pointer_impl<Function, Args...>>;
+
+            static_assert(sizeof(function_impl) <= BufferSize, "Internal buffer is too small");
+            
+            return [](handle_command command, void* storage, void* param) {
+                switch (command) {
+                    case handle_command::create_from_value: {
+                        auto* value = static_cast<Function*>(param);
+                        new(storage) function_impl(std::move(*value));
+                        break;
+                    }
+                    case handle_command::create_from_other: {
+                        auto* other = static_cast<function_impl*>(param);
+                        new(storage) function_impl(std::move(*other));
+                        break;
+                    }
+                    case handle_command::invoke: {
+                        auto* self = static_cast<function_impl*>(storage);
+                        auto* params = static_cast<params_pack<Function, Args...>*>(param);
+                        invoke_function<Function, Args...>(self->function_, *params);
+                        break;
+                    }
+                    case handle_command::destroy: {
+                        auto* self = static_cast<function_impl*>(storage);
+                        self->~function_impl();
+                        break;
+                    }
                 }
-                case handle_command::create_from_other: {
-                   auto* other = static_cast<function_pointer_impl*>(param);
-                    new (storage) function_pointer_impl(std::move(*other));
-                    break;
-                }
-                case handle_command::invoke: {
-                    auto* self = static_cast<function_pointer_impl*>(storage);
-                    auto* params = static_cast<params_pack<Function, Args...>*>(param);
-                    invoke_function<Function, Args...>(*(self->function_), *params);
-                    break;
-                }
-                case handle_command::destroy: {
-                    auto* self = static_cast<function_pointer_impl*>(storage);
-                    self->~function_pointer_impl();
-                    break;
-                }
-            }
+            };
         }
 
-        template<class Function, class... Args>
-        handle_function get_function_handle(std::size_t buffer_size) {
-            using function_inplace = function_inplace_impl<Function, Args...>;
-            using function_pointer = function_pointer_impl<Function, Args...>;
-            return sizeof(function_inplace) <= buffer_size
-                ? &function_inplace::handle
-                : &function_pointer::handle;
-        }
+        constexpr static handle_function noop_handle = [](handle_command, void*, void*) {};
 
     } // namespace detail
 
@@ -165,7 +135,7 @@ namespace active
         constexpr static auto buffer_size = 4 * sizeof(void*);
 
         unique_function() noexcept
-            : handle_(&detail::noop_handle)
+            : handle_(detail::noop_handle)
         {
         }
 
@@ -173,7 +143,7 @@ namespace active
             std::is_invocable_r<Result, Function, Args...>::value &&
             std::is_nothrow_move_constructible<Function>::value>>
         unique_function(Function&& value)
-            : handle_(detail::get_function_handle<Function, Args...>(sizeof(storage_)))
+            : handle_(detail::get_function_handle<sizeof(storage_), Function, Args...>())
         {
             std::invoke(handle_, detail::handle_command::create_from_value, &storage_, &value);
         }
@@ -199,7 +169,7 @@ namespace active
         }
 
         explicit operator bool() const noexcept {
-            return handle_ != &detail::noop_handle;
+            return handle_ != detail::noop_handle;
         }
 
         result_type operator() (Args&&... args) {
