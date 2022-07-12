@@ -44,7 +44,7 @@ namespace active
                     std::add_lvalue_reference_t<std::invoke_result_t<Function, Args...>>,
                     std::add_lvalue_reference_t<Args>...>>;
 
-        template<class Function, class... Args>
+        template<class Function>
         struct function_inplace_impl
         {
             function_inplace_impl(Function&& fn) : function_(std::move(fn)) {}
@@ -55,7 +55,7 @@ namespace active
             Function function_;
         };
 
-        template<class Function, class... Args>
+        template<class Function>
         struct function_pointer_impl
         {
             function_pointer_impl(Function&& fn) : function_(std::make_unique<Function>(std::move(fn))) {}
@@ -88,8 +88,8 @@ namespace active
         handle_function get_function_handle() {
             using function_impl = std::conditional_t<
                 sizeof(Function) <= BufferSize,
-                function_inplace_impl<Function, Args...>,
-                function_pointer_impl<Function, Args...>>;
+                function_inplace_impl<Function>,
+                function_pointer_impl<Function>>;
 
             static_assert(sizeof(function_impl) <= BufferSize, "Internal buffer is too small");
             
