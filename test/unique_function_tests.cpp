@@ -29,7 +29,7 @@ TEST_CASE( "Swapable", "[unique_function]" )
 {
     auto f1 = unique_function<int()>([]() { return 1; });
     auto f2 = unique_function<int()>([]() { return 2; });
-    using namespace std;
+    using std::swap;
     swap(f1, f2);
     REQUIRE((f1() == 2 && f2() == 1));
 }

@@ -226,7 +226,7 @@ namespace active
         }
 
         void swap(unique_function& other) noexcept {
-            using namespace std;
+            using std::swap;
             swap(callable_, other.callable_);
         }
 
