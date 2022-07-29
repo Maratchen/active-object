@@ -70,11 +70,11 @@ namespace active
         void invoke_function(Function& fn, params_pack<Function, Args...>& params) {
             if constexpr (std::is_void_v<std::invoke_result_t<Function, Args...>>) {
                 std::apply([&](auto&... args) {
-                    fn(std::forward<Args>(args)...);
+                    std::invoke(fn, std::forward<Args>(args)...);
                 }, params);
             } else {
                 std::apply([&](auto& result, auto&... args) {
-                    result = fn(std::forward<Args>(args)...);
+                    result = std::invoke(fn, std::forward<Args>(args)...);
                 }, params);
             }
         }
@@ -243,7 +243,7 @@ namespace active
             callable_impl(Function&& fn) : fn_(std::forward<Function>(fn)) {}
 
             Result invoke(Args&&... args) override {
-                return fn_(std::forward<Args>(args)...);
+                return std::invoke(fn_, std::forward<Args>(args)...);
             }
 
             typename std::decay<Function>::type fn_;

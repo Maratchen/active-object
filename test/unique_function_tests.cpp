@@ -33,3 +33,16 @@ TEST_CASE( "Swapable", "[unique_function]" )
     swap(f1, f2);
     REQUIRE((f1() == 2 && f2() == 1));
 }
+
+TEST_CASE( "Member-function", "[unique_function]" )
+{
+    struct Counter
+    {
+        int inc() { return ++counter_; }
+        int counter_ = 0;
+    };
+
+    auto counter = Counter();
+    auto increment = unique_function<int(Counter*)>{ &Counter::inc };
+    REQUIRE(increment(&counter) == 1);
+}
