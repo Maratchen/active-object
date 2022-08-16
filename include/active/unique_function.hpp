@@ -254,6 +254,11 @@ namespace active
 
 #   endif // #if SOO_UNIQUE_FUNCTION
 
+    template<class... Ts>
+    void swap(unique_function<Ts...>& lhs, unique_function<Ts...>& rhs) noexcept {
+        lhs.swap(rhs);
+    }
+
 #endif // #if __cpp_lib_move_only_function >= 202110L
 
 }
