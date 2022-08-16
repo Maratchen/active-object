@@ -113,7 +113,7 @@ namespace active
                     }
                     case handle_command::destroy: {
                         auto* self = static_cast<function_impl*>(storage);
-                        self->~function_impl();
+                        std::destroy_at(self);
                         break;
                     }
                 }
