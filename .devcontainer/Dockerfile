@@ -20,14 +20,11 @@ RUN apt-get update \
     # Install C++ tools
     && apt-get -y install \
         build-essential \
-        ninja-build \
         cmake \
         cppcheck \
+        git \
+        ninja-build \
         valgrind \
-    #
-    # Install Conan
-    && apt-get -y install python3-pip \
-    && pip3 install conan \
     #
     # [Optional] Update UID/GID if needed
     && if [ "$USER_GID" != "1000" ] || [ "$USER_UID" != "1000" ]; then \
