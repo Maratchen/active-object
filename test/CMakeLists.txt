@@ -1,4 +1,4 @@
-find_package(Catch2 3 REQUIRED)
+FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests
     unique_function_tests.cpp

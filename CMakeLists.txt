@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.14)
 project(active_object)
 
 option(USE_SMALL_OBJECT_OPTIMIZATION "Use Small Object Optimization for unique function" ON)
@@ -7,30 +7,6 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 
 find_package(Threads REQUIRED)
-
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
-list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR})
-
-# Download automatically, you can also just copy the conan.cmake file
-if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
-  message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
-  file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
-                "${CMAKE_BINARY_DIR}/conan.cmake"
-                TLS_VERIFY ON)
-endif()
-
-
-include(${CMAKE_BINARY_DIR}/conan.cmake)
-
-conan_cmake_configure(REQUIRES benchmark/1.6.1 catch2/3.0.1
-                      GENERATORS cmake_find_package)
-
-conan_cmake_autodetect(settings)
-
-conan_cmake_install(PATH_OR_REFERENCE .
-                    BUILD missing
-                    REMOTE conancenter
-                    SETTINGS ${settings})
 
 add_library(active INTERFACE)
 
@@ -50,6 +26,34 @@ target_compile_definitions(active INTERFACE
     $<$<BOOL:${USE_SMALL_OBJECT_OPTIMIZATION}>:SOO_UNIQUE_FUNCTION=1>
 )
 
-enable_testing()
-add_subdirectory(test)
-add_subdirectory(benchmark)
+include(FetchContent)
+
+FetchContent_Declare(
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        605a34765aa5d5ecbf476b4598a862ada971b0cc # v3.0.1
+)
+
+FetchContent_Declare(
+  benchmark
+  GIT_REPOSITORY https://github.com/google/benchmark.git
+  GIT_TAG        0d98dba29d66e93259db7daa53a9327df767a415 # v1.6.1
+)
+
+if(${CMAKE_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
+    set(PROJECT_IS_TOP_LEVEL TRUE)
+else()
+    set(PROJECT_IS_TOP_LEVEL FALSE)
+endif()
+
+option(ACTIVE_BUILD_BENCHMARK "Build active library benchmark" ${PROJECT_IS_TOP_LEVEL})
+option(ACTIVE_BUILD_TESTS "Build active library unit tests" ${PROJECT_IS_TOP_LEVEL})
+
+if(${ACTIVE_BUILD_BENCHMARK})
+  add_subdirectory(benchmark)
+endif()
+
+if(${ACTIVE_BUILD_TESTS})
+  enable_testing()
+  add_subdirectory(test)
+endif()

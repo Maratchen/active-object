@@ -1,4 +1,5 @@
-find_package(benchmark REQUIRED)
+set(BENCHMARK_ENABLE_TESTING OFF)
+FetchContent_MakeAvailable(benchmark)
 
 add_executable(benchmarks
     thread_executor_benchmarks.cpp
